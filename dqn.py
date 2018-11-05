@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import argparse
 from collections import deque
-from DL.agents import DCQNagent, DQNagent
+from dqn.agents import DCQNagent, DQNagent
 from libs.wrappers import make_env
 import os
 import time

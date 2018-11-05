@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 
-class BasicAgent(object):
+class BaseAgent(object):
     def __init__(self, hp, logdir, log=True):
         self.n_actions = hp.n_actions
         self.lr = hp.lr
@@ -48,18 +48,36 @@ class BasicAgent(object):
         self.saver.restore(self.sess, model_path)
 
 
-class DQNagent(BasicAgent):
+class DQNagent(BaseAgent):
+    def __init__(self, hp, logdir, log=True):
+        self.model = hp.model
+        self.obs_shape = hp.obs_shape
+        super(DQNagent, self).__init__(hp, logdir, log)
+
     def _placeholders(self):
-        self.observation = tf.placeholder(tf.float32, shape=(None, 8))
+        self.observation = tf.placeholder(tf.float32, shape=self.obs_shape)
         self.action = tf.placeholder(tf.int32, shape=(None, ))
         self.target_q = tf.placeholder(tf.float32, shape=(None, ))
 
     def _model(self):
-        dense_1 = tf.layers.dense(self.observation, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_1 = tf.nn.relu(dense_1)
-        dense_2 = tf.layers.dense(relu_1, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_2 = tf.nn.relu(dense_2)
-        self.q = tf.layers.dense(relu_2, self.n_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
+        if self.model == "cnn":
+            conv_1 = tf.layers.conv2d(self.observation, filters=32, kernel_size=8, strides=4, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_1 = tf.nn.relu(conv_1)
+            conv_2 = tf.layers.conv2d(relu_1, filters=64, kernel_size=4, strides=2, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_2 = tf.nn.relu(conv_2)
+            conv_3 = tf.layers.conv2d(relu_2, filters=64, kernel_size=3, strides=1, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_3 = tf.nn.relu(conv_3)
+            flatten_1 = tf.layers.flatten(relu_3)
+            dense_1 = tf.layers.dense(flatten_1, 512, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_4 = tf.nn.relu(dense_1)
+            self.q = tf.layers.dense(relu_4, self.n_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
+
+        elif self.model == "mlp":
+            dense_1 = tf.layers.dense(self.observation, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_1 = tf.nn.relu(dense_1)
+            dense_2 = tf.layers.dense(relu_1, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_2 = tf.nn.relu(dense_2)
+            self.q = tf.layers.dense(relu_2, self.n_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         self.q_max = tf.reduce_max(self.q, axis=1)
         self.best_action = tf.argmax(self.q, axis=1)
@@ -82,7 +100,6 @@ class DQNagent(BasicAgent):
 
     def update_policy(self, observation, action, target_q):
         loss, _ = self.sess.run([self.loss, self.train_op], feed_dict={ self.observation: observation, self.action: action, self.target_q: target_q})
-        # Update epsilon
         return loss
 
     def _summaries(self):
@@ -110,31 +127,4 @@ class DQNagent(BasicAgent):
     def log_q(self, observation, t):
         q_sum = self.sess.run(self.mean_q_summary, feed_dict={ self.observation: observation })
         self.writer.add_summary(q_sum, t)
-
-class DCQNagent(DQNagent):
-    def _placeholders(self):
-        self.observation = tf.placeholder(tf.float32, shape=(None, 84, 84, 4))
-        self.action = tf.placeholder(tf.int32, shape=(None, ))
-        self.target_q = tf.placeholder(tf.float32, shape=(None, ))
-
-    def _model(self):
-        conv_1 = tf.layers.conv2d(self.observation, filters=32, kernel_size=8, strides=4, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_1 = tf.nn.relu(conv_1)
-        conv_2 = tf.layers.conv2d(relu_1, filters=64, kernel_size=4, strides=2, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_2 = tf.nn.relu(conv_2)
-        conv_3 = tf.layers.conv2d(relu_2, filters=64, kernel_size=3, strides=1, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_3 = tf.nn.relu(conv_3)
-        flatten_1 = tf.layers.flatten(relu_3)
-        dense_1 = tf.layers.dense(flatten_1, 512, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_4 = tf.nn.relu(dense_1)
-        self.q = tf.layers.dense(relu_4, self.n_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
-
-        self.q_max = tf.reduce_max(self.q, axis=1)
-        self.best_action = tf.argmax(self.q, axis=1)
-
-        mask = tf.one_hot(self.action, self.n_actions, on_value=True, off_value=False, dtype=tf.bool)
-        q_sa = tf.boolean_mask(self.q, mask)
-        self.loss = tf.losses.mean_squared_error(self.target_q, q_sa)
-        optimizer = tf.train.AdamOptimizer(self.lr)
-        self.train_op = optimizer.minimize(self.loss, global_step=self.global_step)
 
