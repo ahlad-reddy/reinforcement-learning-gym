@@ -5,7 +5,7 @@ import argparse
 
 from libs.agents import BaseAgent
 from libs.wrappers import wrap_env
-from libs.utils import ExperienceBuffer, make_logdir
+from libs.utils import ExperienceBuffer, Transition, make_logdir
 
 
 def parse_args():
@@ -113,7 +113,7 @@ def calc_targets(transitions, target_agent, gamma):
 
 
 def main():
-    logdir = make_logdir()
+    logdir = make_logdir('dqn')
 
     args = parse_args()
     env = gym.make(args.env)
@@ -145,7 +145,7 @@ def main():
 
             a = agent.choose_action([o], epsilon)
             next_o, r, done, _ = env.step(a[0])
-            exp_buffer.append_transition(o, a, r, done, next_o)
+            exp_buffer.append(Transition(o, a, r, done, next_o, total_return=None))
             total_reward += r
             o = next_o
 
