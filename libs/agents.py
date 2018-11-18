@@ -56,18 +56,14 @@ class BaseAgent(object):
         conv_3 = tf.layers.conv2d(relu_2, filters=64, kernel_size=3, strides=1, padding='SAME', kernel_initializer=tf.contrib.layers.xavier_initializer())
         relu_3 = tf.nn.relu(conv_3)
         flatten_1 = tf.layers.flatten(relu_3)
-        dense_1 = tf.layers.dense(flatten_1, 512, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_4 = tf.nn.relu(dense_1)
-        output = tf.layers.dense(relu_4, self.num_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        return output
+        return flatten_1
 
     def _mlp(self):
         dense_1 = tf.layers.dense(self.observation, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_1 = tf.nn.relu(dense_1)
-        dense_2 = tf.layers.dense(relu_1, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        relu_2 = tf.nn.relu(dense_2)
-        output = tf.layers.dense(relu_2, self.num_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
-        return output
+        tanh_1 = tf.nn.tanh(dense_1)
+        dense_2 = tf.layers.dense(tanh_1, 64, kernel_initializer=tf.contrib.layers.xavier_initializer())
+        tanh_2 = tf.nn.tanh(dense_2)
+        return tanh_2
 
 
 

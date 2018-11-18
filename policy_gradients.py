@@ -13,7 +13,7 @@ def parse_args():
 
     parser.add_argument('--env', type=str, help='Gym Environment.', default="CartPole-v1")
 
-    parser.add_argument('--total_episodes', type=int, help='Total number of episodes to run', default=500)
+    parser.add_argument('--episodes', type=int, help='Total number of episodes to run', default=500)
 
     parser.add_argument('--buffer_size', type=int, help='Maximum capacity of experience replay buffer', default=10000)
 
@@ -52,7 +52,8 @@ class REINFORCE(BaseAgent):
         self.advantage = tf.placeholder(tf.float32, shape=(None, ))
 
     def _model(self):
-        self.logits = self._mlp()
+        latent = self._mlp()
+        self.logits = tf.layers.dense(latent, self.num_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
         self.p = tf.nn.softmax(self.logits)
 
         action_mask = tf.one_hot(self.action, self.num_actions, on_value=True, off_value=False, dtype=tf.bool)
@@ -99,7 +100,7 @@ def main():
     agent = REINFORCE(hp, logdir)
 
     rewards = []
-    for episode in range(args.total_episodes):
+    for episode in range(args.episodes):
         trajectory = []
         observation = env.reset()
         total_reward = 0
@@ -122,7 +123,7 @@ def main():
             advantage = t.total_return - exp_buffer.mean_value()
             gs = agent.update_policy([t.state], [t.action], [advantage])
 
-        print('Episode: {}/{}, Total Reward: {}'.format(episode, args.total_episodes, total_reward))
+        print('Episode: {}/{}, Total Reward: {}'.format(episode, args.episodes, total_reward))
         agent.log_reward(total_reward, np.mean(rewards[-100:]), exp_buffer.mean_value(), gs)
 
 

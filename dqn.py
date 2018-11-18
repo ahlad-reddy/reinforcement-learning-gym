@@ -54,9 +54,13 @@ class DQNagent(BaseAgent):
 
     def _model(self):
         if len(self.input_shape) == 4:
-            self.q = self._cnn()
+            latent = self._cnn()
+            dense_1 = tf.layers.dense(latent, 512, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            relu_4 = tf.nn.relu(dense_1)
+            self.q = tf.layers.dense(relu_4, self.num_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
         else:
-            self.q = self._mlp()
+            latent = self._mlp()
+            self.q = tf.layers.dense(input_stack, self.num_actions, kernel_initializer=tf.contrib.layers.xavier_initializer())
 
         self.q_max = tf.reduce_max(self.q, axis=1)
         self.best_action = tf.argmax(self.q, axis=1)
